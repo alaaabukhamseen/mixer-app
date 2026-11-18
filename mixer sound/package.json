@@ -1,0 +1,27 @@
+{
+  "name": "discord-soundboard-mixer",
+  "version": "1.0.0",
+  "description": "Discord-style Soundboard & Real-Time Live Voice Changer with Linux Virtual Mic integration",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "generate-sounds": "node generate-sounds.js",
+    "virtual-mic:start": "./virtual-mic.sh start",
+    "virtual-mic:stop": "./virtual-mic.sh stop",
+    "virtual-mic:status": "./virtual-mic.sh status"
+  },
+  "keywords": [
+    "soundboard",
+    "voice-changer",
+    "mixer",
+    "discord",
+    "pipewire",
+    "pulseaudio",
+    "web-audio"
+  ],
+  "author": "Antigravity",
+  "license": "MIT",
+  "dependencies": {
+    "tone": "^15.1.22"
+  }
+}

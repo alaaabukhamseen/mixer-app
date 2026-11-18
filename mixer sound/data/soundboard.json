@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "order": [
+    "custom-sound_1794920639068.mp3",
+    "custom-sound_1794920450617.mp3",
+    "sure_1794920540297.mp3",
+    "custom-sound_1794926657339.mp3"
+  ],
+  "sounds": {
+    "custom-sound_1794920639068.mp3": {
+      "name": "يا مجنوووووون",
+      "icon": "🎵",
+      "folder": "",
+      "tags": [],
+      "favorite": false,
+      "volume": 1,
+      "trimStart": 0,
+      "trimEnd": null,
+      "fadeIn": 0,
+      "fadeOut": 0,
+      "loop": false
+    },
+    "custom-sound_1794920450617.mp3": {
+      "name": "ليش زعلان؟",
+      "icon": "🎵",
+      "folder": "",
+      "tags": [],
+      "favorite": false,
+      "volume": 1,
+      "trimStart": 0,
+      "trimEnd": null,
+      "fadeIn": 0,
+      "fadeOut": 0,
+      "loop": false
+    },
+    "sure_1794920540297.mp3": {
+      "name": "are you sure?",
+      "icon": "🎶",
+      "folder": "",
+      "tags": [],
+      "favorite": false,
+      "volume": 1,
+      "trimStart": 0,
+      "trimEnd": null,
+      "fadeIn": 0,
+      "fadeOut": 0,
+      "loop": false
+    },
+    "custom-sound_1794926657339.mp3": {
+      "name": "ليش انت زعلان",
+      "icon": "",
+      "folder": "",
+      "tags": [],
+      "favorite": false,
+      "volume": 1,
+      "trimStart": 0,
+      "trimEnd": null,
+      "fadeIn": 0,
+      "fadeOut": 0,
+      "loop": false
+    }
+  },
+  "trash": []
+}

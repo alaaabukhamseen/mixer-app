@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#0b0c11">
+    <meta name="description" content="AuraMixer Studio — a soundboard and real-time voice changer with PipeWire virtual microphone support.">
+    <title>AuraMixer Studio — Soundboard &amp; Live Voice Changer</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%235865F2'/%3E%3Cstop offset='1' stop-color='%2300E5FF'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='url(%23g)'/%3E%3Crect x='14' y='25' width='5' height='14' rx='2.5' fill='%23fff'/%3E%3Crect x='24' y='17' width='5' height='30' rx='2.5' fill='%23fff'/%3E%3Crect x='34' y='11' width='5' height='42' rx='2.5' fill='%23fff'/%3E%3Crect x='44' y='21' width='5' height='22' rx='2.5' fill='%23fff'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-shell">
+        <header class="topbar">
+            <a class="brand" href="/" aria-label="AuraMixer Studio home">
+                <span class="brand-mark" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+                        <path d="M4 10v4"/><path d="M8 6v12"/><path d="M12 3v18"/><path d="M16 8v8"/><path d="M20 11v2"/>
+                    </svg>
+                </span>
+                <div class="brand-copy">
+                    <h1>AuraMixer <em>Studio</em></h1>
+                    <p>Soundboard &amp; live voice changer</p>
+                </div>
+            </a>
+
+            <div class="topbar-actions">
+                <button id="virtualMicPill" class="status-pill is-checking" type="button" aria-live="polite" title="Toggle the PipeWire virtual microphone">
+                    <span class="status-dot" aria-hidden="true"></span>
+                    <span id="virtualMicStatusText">Checking virtual mic…</span>
+                </button>
+
+                <span class="action-sep" aria-hidden="true"></span>
+
+                <button id="btnDiscordGuide" class="btn btn-ghost" type="button" title="Open the app setup guide">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13a8 8 0 0 1 16 0"/><rect x="2.5" y="13" width="4" height="7" rx="2"/><rect x="17.5" y="13" width="4" height="7" rx="2"/><path d="M18 21a4 4 0 0 1-4 1h-1"/></svg>
+                    <span class="btn-label">App setup</span>
+                </button>
+
+                <button id="btnMonitorToggle" class="btn btn-ghost" type="button" aria-pressed="false" title="Listen to your own mic in your headphones (H)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13a8 8 0 0 1 16 0"/><rect x="2.5" y="13" width="4" height="7" rx="2"/><rect x="17.5" y="13" width="4" height="7" rx="2"/></svg>
+                    <span class="btn-label">Hear myself</span>
+                    <span id="monitorText" class="state-chip">OFF</span>
+                </button>
+
+                <button id="btnStopAll" class="btn btn-ghost btn-icon-ghost" type="button" title="Stop all playing sounds (Esc)">
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" fill="currentColor" stroke="none"/></svg>
+                    <span class="btn-label">Stop all</span>
+                </button>
+
+                <button id="btnMicToggle" class="btn btn-primary" type="button" aria-pressed="false">
+                    <svg id="micIcon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="M8.5 21h7"/></svg>
+                    <span id="micText">Start mic</span>
+                </button>
+            </div>
+        </header>
+
+        <main class="workspace">
+            <!-- ───────────────────────── Mixer ───────────────────────── -->
+            <section class="panel mixer-panel" aria-labelledby="mixerTitle">
+                <header class="panel-header">
+                    <div class="panel-heading">
+                        <span class="panel-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M4 4v6M4 14v6M12 4v10M12 18v2M20 4v2M20 10v10"/><rect x="2" y="9" width="4" height="6" rx="2"/><rect x="10" y="14" width="4" height="4" rx="2"/><rect x="18" y="6" width="4" height="4" rx="2"/></svg>
+                        </span>
+                        <div>
+                            <h2 id="mixerTitle">Audio mixer</h2>
+                            <p class="panel-subtitle">4-channel output deck</p>
+                        </div>
+                    </div>
+                    <span class="chip chip-live" id="engineChip"><span class="chip-dot"></span>Standby</span>
+                    <button id="btnRouteAudio" class="btn btn-quiet btn-sm" type="button" title="Force-route mixer output to the virtual mic sink">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7Z"/></svg>
+                        <span class="btn-label">Route audio</span>
+                    </button>
+                </header>
+
+                <div class="panel-body">
+                    <div class="fader-deck" role="group" aria-label="Channel volume faders">
+                        <div class="fader-channel" data-channel="mic">
+                            <span class="fader-name">Mic in</span>
+                            <div class="fader-main">
+                                <div class="fader-scale" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+                                <div class="fader-track">
+                                    <input type="range" class="vertical-slider" id="faderMic" min="0" max="2" step="0.01" value="1" aria-label="Microphone input volume" title="Double-click to reset">
+                                </div>
+                                <div class="vu-meter" aria-hidden="true"><span id="vuMic" class="vu-fill"></span></div>
+                            </div>
+                            <output class="fader-value" id="valMic">100%</output>
+                        </div>
+
+                        <div class="fader-channel" data-channel="voice">
+                            <span class="fader-name">Voice FX</span>
+                            <div class="fader-main">
+                                <div class="fader-scale" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+                                <div class="fader-track">
+                                    <input type="range" class="vertical-slider" id="faderVoice" min="0" max="2" step="0.01" value="1" aria-label="Voice effects volume" title="Double-click to reset">
+                                </div>
+                                <div class="vu-meter" aria-hidden="true"><span id="vuVoice" class="vu-fill"></span></div>
+                            </div>
+                            <output class="fader-value" id="valVoice">100%</output>
+                        </div>
+
+                        <div class="fader-channel" data-channel="soundboard">
+                            <span class="fader-name">Sounds</span>
+                            <div class="fader-main">
+                                <div class="fader-scale" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+                                <div class="fader-track">
+                                    <input type="range" class="vertical-slider" id="faderSoundboard" min="0" max="2" step="0.01" value="1" aria-label="Soundboard volume" title="Double-click to reset">
+                                </div>
+                                <div class="vu-meter" aria-hidden="true"><span id="vuSoundboard" class="vu-fill"></span></div>
+                            </div>
+                            <output class="fader-value" id="valSoundboard">100%</output>
+                        </div>
+
+                        <div class="fader-channel" data-channel="master">
+                            <span class="fader-name">Master</span>
+                            <div class="fader-main">
+                                <div class="fader-scale" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+                                <div class="fader-track">
+                                    <input type="range" class="vertical-slider" id="faderMaster" min="0" max="2" step="0.01" value="1" aria-label="Master volume sent to your app" title="Virtual mic output level — double-click to reset">
+                                </div>
+                                <div class="vu-meter" aria-hidden="true"><span id="vuMaster" class="vu-fill"></span></div>
+                            </div>
+                            <output class="fader-value" id="valMaster">100%</output>
+                        </div>
+                    </div>
+
+                    <div class="viz-card">
+                        <div class="viz-head">
+                            <span class="card-title"><span class="live-dot" id="vizLiveDot"></span> Output visualizer</span>
+                            <div class="segmented" role="group" aria-label="Visualizer mode">
+                                <button id="btnVisBars" class="is-active" type="button" aria-pressed="true">Spectrum</button>
+                                <button id="btnVisWave" type="button" aria-pressed="false">Wave</button>
+                            </div>
+                        </div>
+                        <div class="viz-canvas">
+                            <canvas id="audioVisualizer" aria-label="Real-time audio visualizer"></canvas>
+                            <span class="viz-idle" id="vizIdle">Play a sound or start the mic to see the signal</span>
+                        </div>
+                    </div>
+
+                    <div class="settings-stack">
+                        <div class="setting-row">
+                            <div class="setting-copy">
+                                <span class="setting-title">Anti-echo</span>
+                                <span class="setting-hint">Browser echo cancellation for laptop mics</span>
+                            </div>
+                            <label class="switch" title="Toggle echo cancellation and noise suppression">
+                                <input type="checkbox" id="toggleEchoCancel" checked>
+                                <span class="switch-track"><span class="switch-thumb"></span></span>
+                            </label>
+                        </div>
+
+                        <div class="setting-block">
+                            <div class="setting-head">
+                                <label class="setting-title" for="noiseGateSlider">Noise gate</label>
+                                <span class="value-chip" id="noiseGateVal">−65 dB</span>
+                            </div>
+                            <input type="range" class="horizontal-slider gate-slider" id="noiseGateSlider" min="-90" max="-20" step="1" value="-65" aria-label="Noise gate threshold in decibels">
+                            <div class="range-legend"><span>Quiet room</span><span>Aggressive</span></div>
+                        </div>
+
+                        <div class="select-block">
+                            <label class="setting-title" for="selectMicDevice">Microphone input</label>
+                            <div class="select-wrap">
+                                <select id="selectMicDevice" class="select-input">
+                                    <option value="">System default microphone</option>
+                                </select>
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                            </div>
+                        </div>
+
+                        <div class="select-block">
+                            <div class="setting-head">
+                                <label class="setting-title" for="selectOutputDevice">Virtual mic feed</label>
+                                <span class="route-status" id="routeStatus"><span class="route-dot"></span>Not routed</span>
+                            </div>
+                            <div class="select-wrap">
+                                <select id="selectOutputDevice" class="select-input">
+                                    <option value="">Auto — Soundboard sink</option>
+                                </select>
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                            </div>
+                        </div>
+
+                        <div class="select-block">
+                            <div class="setting-head">
+                                <label class="setting-title" for="selectMonitorDevice">Monitor output</label>
+                                <span class="route-status" id="monitorRouteStatus"><span class="route-dot"></span>System default</span>
+                            </div>
+                            <div class="select-wrap">
+                                <select id="selectMonitorDevice" class="select-input">
+                                    <option value="">System default output</option>
+                                </select>
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                            </div>
+                            <p class="setting-hint" id="monitorDeviceHint">“Hear myself” plays here, separate from the virtual mic feed.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ───────────────────────── Voice ───────────────────────── -->
+            <section class="panel voice-panel" aria-labelledby="voiceTitle">
+                <header class="panel-header">
+                    <div class="panel-heading">
+                        <span class="panel-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/><path d="M8.5 21h7"/></svg>
+                        </span>
+                        <div>
+                            <h2 id="voiceTitle">Voice characters</h2>
+                            <p class="panel-subtitle">Natural presets + optional effects</p>
+                        </div>
+                    </div>
+                    <div class="panel-actions">
+                        <span class="badge badge-green" id="activePresetTag">Normal voice</span>
+                        <button id="btnClearEffects" class="btn btn-quiet btn-sm" type="button" title="Turn off reverb, echo, distortion, radio and robot">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h16"/><path d="M12 4v16"/></svg>
+                            Pure voice
+                        </button>
+                    </div>
+                </header>
+
+                <div class="panel-body">
+                    <div class="voice-hero">
+                        <div class="active-voice-display">
+                            <div id="activeVoiceAvatar" class="active-voice-avatar" aria-hidden="true">🎙️</div>
+                            <div class="active-voice-meta">
+                                <h3 id="activeVoiceName">Normal voice</h3>
+                                <p id="activeVoiceDesc">100% natural, untouched microphone</p>
+                            </div>
+                        </div>
+                        <button id="btnResetVoice" class="btn btn-quiet btn-sm" type="button">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>
+                            Reset
+                        </button>
+                    </div>
+
+                    <div class="section-label">Select a voice <span>Dry, natural tone</span></div>
+                    <div class="voice-presets-grid" id="presetsGrid" role="listbox" aria-label="Voice character presets"></div>
+
+                    <div class="rack-card">
+                        <div class="rack-head">
+                            <span class="card-title">Effects rack</span>
+                            <span id="effectsStatusBadge" class="badge badge-green">Dry</span>
+                        </div>
+
+                        <div class="fx-presets">
+                            <button id="btnFxRobot" class="fx-chip" type="button" aria-pressed="false"><span aria-hidden="true">🤖</span> Robot</button>
+                            <button id="btnFxRadio" class="fx-chip" type="button" aria-pressed="false"><span aria-hidden="true">📻</span> Radio</button>
+                            <button id="btnFxDemon" class="fx-chip" type="button" aria-pressed="false"><span aria-hidden="true">😈</span> Demon</button>
+                            <button id="btnFxCave" class="fx-chip" type="button" aria-pressed="false"><span aria-hidden="true">🏛️</span> Cave</button>
+                        </div>
+
+                        <div class="rack-slider-group">
+                            <div class="rack-slider-item">
+                                <div class="rack-slider-label"><span>Pitch shift</span><span id="labelPitch">0 st</span></div>
+                                <input type="range" class="horizontal-slider" id="sliderPitch" min="-12" max="12" step="0.5" value="0" aria-label="Pitch shift in semitones">
+                            </div>
+
+                            <div class="rack-slider-item">
+                                <div class="rack-slider-label"><span>Formant / tone</span><span id="labelTone">Neutral</span></div>
+                                <input type="range" class="horizontal-slider" id="sliderTone" min="-8" max="8" step="1" value="0" aria-label="Formant and tone">
+                            </div>
+
+                            <div class="rack-slider-item">
+                                <div class="rack-slider-label"><span>Reverb</span><span id="labelReverb">0%</span></div>
+                                <input type="range" class="horizontal-slider" id="sliderReverb" min="0" max="100" step="1" value="0" aria-label="Reverb amount">
+                            </div>
+
+                            <div class="rack-slider-item">
+                                <div class="rack-slider-label"><span>Echo delay</span><span id="labelEcho">0 ms</span></div>
+                                <input type="range" class="horizontal-slider" id="sliderEcho" min="0" max="500" step="20" value="0" aria-label="Echo delay in milliseconds">
+                            </div>
+
+                            <div class="rack-slider-item">
+                                <div class="rack-slider-label"><span>Distortion</span><span id="labelDrive">0%</span></div>
+                                <input type="range" class="horizontal-slider" id="sliderDrive" min="0" max="100" step="1" value="0" aria-label="Distortion drive">
+                            </div>
+
+                            <div class="rack-slider-item">
+                                <div class="rack-slider-label"><span>Robot rate</span><span id="labelRobot">0 Hz</span></div>
+                                <input type="range" class="horizontal-slider" id="sliderRobot" min="0" max="100" step="2" value="0" aria-label="Robot modulation rate">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ─────────────────────── Soundboard ─────────────────────── -->
+            <section class="panel soundboard-panel" aria-labelledby="soundboardTitle">
+                <header class="panel-header">
+                    <div class="panel-heading">
+                        <span class="panel-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M11 5 6 9H3v6h3l5 4V5Z"/><path d="M15 9a4 4 0 0 1 0 6"/><path d="M18 6a8 8 0 0 1 0 12"/></svg>
+                        </span>
+                        <div>
+                            <h2 id="soundboardTitle">Soundboard</h2>
+                            <p class="panel-subtitle">Hotkeys work anywhere in the app</p>
+                        </div>
+                    </div>
+                    <div class="panel-actions">
+                        <span class="chip" id="soundCountBadge">11 sounds</span>
+                        <button id="btnOpenTrash" class="btn btn-quiet btn-sm" type="button" title="Open deleted sounds">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="m6 7 1 13h10l1-13"/><path d="M10 11v5M14 11v5"/></svg>
+                            <span class="btn-label">Trash</span>
+                            <span id="trashCount" class="count-chip" hidden>0</span>
+                        </button>
+                        <button id="btnOpenUpload" class="btn btn-soft btn-sm" type="button">
+                            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+                            Add audio
+                        </button>
+                    </div>
+                </header>
+
+                <div class="panel-body">
+                    <div class="search-wrap">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.4-3.4"/></svg>
+                        <input type="text" id="soundSearch" class="search-input" placeholder="Search sounds, folders or tags…" autocomplete="off" aria-label="Search soundboard">
+                        <kbd class="search-kbd" aria-hidden="true">/</kbd>
+                    </div>
+
+                    <div class="sound-filters" id="soundFilters" aria-label="Soundboard filters"></div>
+
+                    <div class="dropzone" id="soundDropzone" role="button" tabindex="0" aria-label="Upload audio files">
+                        <span class="dropzone-icon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24"><path d="M12 16V4"/><path d="m7 9 5-5 5 5"/><path d="M5 15v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-3"/></svg>
+                        </span>
+                        <span class="dropzone-copy"><strong>Drop audio files here</strong><small>MP3, WAV, OGG, M4A · saved to disk</small></span>
+                    </div>
+                    <input type="file" id="soundFileInput" accept="audio/*,.mp3,.wav,.ogg,.m4a,.aac,.webm" multiple hidden>
+
+                    <div class="soundboard-grid" id="soundboardGrid" aria-live="polite"></div>
+                    <div class="empty-state" id="soundEmpty" hidden>
+                        <span aria-hidden="true">🔎</span>
+                        <strong>No sounds found</strong>
+                        <small>Try a different search, or drop an audio file above.</small>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <footer class="shortcut-bar" aria-label="Keyboard shortcuts">
+            <span><kbd>1</kbd>–<kbd>0</kbd> sounds</span>
+            <span><kbd>Esc</kbd> stop all</span>
+            <span><kbd>M</kbd> mic</span>
+            <span><kbd>H</kbd> hear myself</span>
+            <span><kbd>/</kbd> search</span>
+            <span class="shortcut-spacer"></span>
+            <span class="shortcut-brand">AuraMixer · local only</span>
+        </footer>
+    </div>
+
+    <!-- ───────────────────────── Modals ───────────────────────── -->
+    <div id="discordModal" class="modal-backdrop" role="presentation">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="discordModalTitle">
+            <header class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M4 13a8 8 0 0 1 16 0"/><rect x="2.5" y="13" width="4" height="7" rx="2"/><rect x="17.5" y="13" width="4" height="7" rx="2"/></svg>
+                    </span>
+                    <div>
+                        <h3 id="discordModalTitle">App setup guide</h3>
+                        <p>Your virtual microphone, in three steps</p>
+                    </div>
+                </div>
+                <button class="btn btn-icon modal-close" type="button" data-close="discordModal" aria-label="Close">
+                    <svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+                </button>
+            </header>
+            <div class="modal-body">
+                <div class="modal-status" id="virtualMicModalStatus">
+                    <span class="status-dot"></span>
+                    <span>Checking virtual microphone…</span>
+                </div>
+
+                <ol class="setup-steps">
+                    <li>
+                        <span class="step-num">1</span>
+                        <div>
+                            <strong>Enable the virtual mic</strong>
+                            <p>The app creates a PipeWire sink and a matching <em>Soundboard Virtual Mic</em> source on your system.</p>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="step-num">2</span>
+                        <div>
+                            <strong>Pick it in your app</strong>
+                            <p>In your voice app's <em>settings</em> → <em>Voice &amp; Video</em>, set <b>Input Device</b> to <code>Soundboard Virtual Mic</code>. Keep your normal headphones as the output.</p>
+                        </div>
+                    </li>
+                    <li>
+                        <span class="step-num">3</span>
+                        <div>
+                            <strong>Turn off noise suppression</strong>
+                            <p>Set your app's <em>Noise Suppression</em> to <em>None</em>, otherwise it may swallow your soundboard effects. Keep <b>Hear myself</b> off unless you are testing.</p>
+                        </div>
+                    </li>
+                </ol>
+
+                <div class="modal-note">
+                    <strong>Audio isn’t reaching your app?</strong>
+                    <p>Press a sound once so the browser opens its audio stream, then reconnect the feed below. It captures this browser’s audio into the virtual mic.</p>
+                    <button id="btnBrowserLink" class="btn btn-quiet btn-sm" type="button">Reconnect audio feed</button>
+                </div>
+
+                <div class="modal-actions">
+                    <button id="btnCloseModalBtn" class="btn btn-ghost" type="button">Got it</button>
+                    <button id="btnStartVirtualMicModal" class="btn btn-primary" type="button">Enable virtual mic</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="keybindModal" class="modal-backdrop" role="presentation">
+        <div class="modal modal-sm" role="dialog" aria-modal="true" aria-labelledby="keybindModalTitle">
+            <header class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10"/></svg>
+                    </span>
+                    <div>
+                        <h3 id="keybindModalTitle">Assign hotkey</h3>
+                        <p id="keySoundName">Sound</p>
+                    </div>
+                </div>
+                <button class="btn btn-icon modal-close" type="button" data-close="keybindModal" aria-label="Close">
+                    <svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+                </button>
+            </header>
+            <div class="modal-body modal-body-center">
+                <p class="keybind-hint">Press a letter, number or F-key</p>
+                <div id="keyPromptBox" class="key-prompt">Waiting…</div>
+                <p class="keybind-error" id="keybindError" hidden>That key is reserved. Try another one.</p>
+                <button id="btnClearKeybind" class="btn btn-quiet btn-sm" type="button">Remove hotkey</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="soundEditModal" class="modal-backdrop" role="presentation">
+        <div class="modal modal-wide" role="dialog" aria-modal="true" aria-labelledby="soundEditModalTitle">
+            <header class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h10M4 18h13"/><circle cx="18" cy="12" r="2"/><circle cx="21" cy="18" r="2"/></svg>
+                    </span>
+                    <div>
+                        <h3 id="soundEditModalTitle">Edit sound</h3>
+                        <p id="soundEditSubtitle">Audio, trim, fades and tags</p>
+                    </div>
+                </div>
+                <button class="btn btn-icon modal-close" type="button" data-close="soundEditModal" aria-label="Close">
+                    <svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+                </button>
+            </header>
+            <div class="modal-body">
+                <div class="edit-form-grid">
+                    <label class="field">
+                        <span>Name</span>
+                        <input type="text" id="editSoundName" maxlength="80" autocomplete="off">
+                    </label>
+                    <label class="field field-icon">
+                        <span>Icon</span>
+                        <input type="text" id="editSoundIcon" maxlength="4" autocomplete="off" placeholder="🎵">
+                    </label>
+                    <label class="field">
+                        <span>Folder</span>
+                        <input type="text" id="editSoundFolder" list="folderOptions" maxlength="40" autocomplete="off" placeholder="Unfiled">
+                    </label>
+                    <label class="field">
+                        <span>Tags</span>
+                        <input type="text" id="editSoundTags" maxlength="160" autocomplete="off" placeholder="meme, loud, intro">
+                    </label>
+                </div>
+                <datalist id="folderOptions"></datalist>
+
+                <div class="edit-wave-wrap">
+                    <canvas id="editWaveform" width="640" height="90" aria-label="Sound waveform with trim region"></canvas>
+                    <span class="edit-duration" id="editDuration">0:00</span>
+                </div>
+
+                <div class="edit-sliders">
+                    <div class="edit-slider">
+                        <div class="rack-slider-label"><span>Pad volume</span><span id="editVolumeVal">100%</span></div>
+                        <input type="range" class="horizontal-slider" id="editVolume" min="0" max="200" step="1" value="100" aria-label="Sound volume">
+                    </div>
+                    <div class="edit-slider">
+                        <div class="rack-slider-label"><span>Trim start</span><span id="editTrimStartVal">0.00 s</span></div>
+                        <input type="range" class="horizontal-slider" id="editTrimStart" min="0" max="10" step="0.01" value="0" aria-label="Trim start">
+                    </div>
+                    <div class="edit-slider">
+                        <div class="rack-slider-label"><span>Trim end</span><span id="editTrimEndVal">Full length</span></div>
+                        <div class="inline-control">
+                            <input type="range" class="horizontal-slider" id="editTrimEnd" min="0" max="10" step="0.01" value="10" aria-label="Trim end">
+                            <label class="mini-check"><input type="checkbox" id="editTrimEndOn"> Limit</label>
+                        </div>
+                    </div>
+                    <div class="edit-slider">
+                        <div class="rack-slider-label"><span>Fade in</span><span id="editFadeInVal">0.00 s</span></div>
+                        <input type="range" class="horizontal-slider" id="editFadeIn" min="0" max="3" step="0.01" value="0" aria-label="Fade in">
+                    </div>
+                    <div class="edit-slider">
+                        <div class="rack-slider-label"><span>Fade out</span><span id="editFadeOutVal">0.00 s</span></div>
+                        <input type="range" class="horizontal-slider" id="editFadeOut" min="0" max="3" step="0.01" value="0" aria-label="Fade out">
+                    </div>
+                </div>
+
+                <div class="edit-toggles">
+                    <label class="switch-row">
+                        <span class="switch-copy"><strong>Loop</strong><small>Repeat until you press the pad again</small></span>
+                        <span class="switch"><input type="checkbox" id="editLoop"><span class="switch-track"><span class="switch-thumb"></span></span></span>
+                    </label>
+                    <label class="switch-row">
+                        <span class="switch-copy"><strong>Favorite</strong><small>Pin to the Favorites filter</small></span>
+                        <span class="switch"><input type="checkbox" id="editFavorite"><span class="switch-track"><span class="switch-thumb"></span></span></span>
+                    </label>
+                </div>
+
+                <div class="modal-actions">
+                    <button id="btnPreviewSound" class="btn btn-ghost" type="button">
+                        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7Z"/></svg>
+                        Preview
+                    </button>
+                    <button id="btnSaveSound" class="btn btn-primary" type="button">Save changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="trashModal" class="modal-backdrop" role="presentation">
+        <div class="modal" role="dialog" aria-modal="true" aria-labelledby="trashModalTitle">
+            <header class="modal-header">
+                <div class="modal-title-wrap">
+                    <span class="modal-icon" aria-hidden="true">
+                        <svg viewBox="0 0 24 24"><path d="M4 7h16"/><path d="M9 7V5h6v2"/><path d="m6 7 1 13h10l1-13"/><path d="M10 11v5M14 11v5"/></svg>
+                    </span>
+                    <div>
+                        <h3 id="trashModalTitle">Trash</h3>
+                        <p>Deleted sounds stay here until you empty the trash</p>
+                    </div>
+                </div>
+                <button class="btn btn-icon modal-close" type="button" data-close="trashModal" aria-label="Close">
+                    <svg viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></svg>
+                </button>
+            </header>
+            <div class="modal-body">
+                <div id="trashList" class="trash-list"></div>
+                <div class="modal-actions">
+                    <button id="btnEmptyTrash" class="btn btn-ghost btn-danger-ghost" type="button">Empty trash</button>
+                    <button class="btn btn-primary" type="button" data-close="trashModal">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="false"></div>
+
+    <script src="app.js"></script>
+</body>
+</html>

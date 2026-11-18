@@ -1,0 +1,9 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=AuraMixer Studio
+Comment=Soundboard & Real-Time Live Voice Changer
+Exec=/home/mohd-hp/.gemini/antigravity/scratch/discord-soundboard-mixer/start.sh
+Icon=audio-card
+Terminal=false
+Categories=AudioVideo;Audio;Mixer;
